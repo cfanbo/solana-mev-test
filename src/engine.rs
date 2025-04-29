@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use anyhow::{Ok, Result, anyhow};
 use base64::Engine as _;
+use futures_util::SinkExt;
 use futures_util::StreamExt;
 use jito_sdk_rust::JitoJsonRpcSDK;
 use log::{debug, info};
@@ -85,7 +86,7 @@ impl Engine {
             commitment: Some(CommitmentLevel::Processed.into()),
             ..Default::default()
         };
-        let (_sink, mut stream) = client.subscribe_with_request(Some(request)).await?;
+        let (mut sink, mut stream) = client.subscribe_with_request(Some(request)).await?;
         // let version = client.get_version().await?;
         // println!("version = {:#?}", version);
 
@@ -118,6 +119,14 @@ impl Engine {
                     }
                     UpdateOneof::Ping(v) => {
                         println!("Ping received; {:?}", v);
+                        let _ = sink
+                            .send(yellowstone_grpc_proto::geyser::SubscribeRequest {
+                                ping: Some(yellowstone_grpc_proto::geyser::SubscribeRequestPing {
+                                    id: 1,
+                                }),
+                                ..Default::default()
+                            })
+                            .await;
                     }
                     o => {
                         print!("OTHER: {:?}", o);
